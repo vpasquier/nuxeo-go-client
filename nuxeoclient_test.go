@@ -9,7 +9,7 @@ import (
 
 func TestSmokeClient(t *testing.T) {
 	assert := assert.New(t)
-	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(true).Build()
+	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
 	currentUser, err := nuxeoClient.Create()
 	if err != nil {
 		assert.FailNow("Client should be created")
@@ -32,11 +32,44 @@ func TestClientOptions(t *testing.T) {
 		},
 	}
 
-	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Timeout(10).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Debug(true).Build()
+	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Timeout(1).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Debug(false).Build()
 	currentUser, err := nuxeoClient.Create()
+
 	if err != nil {
-		assert.FailNow("Client should be created")
+		assert.FailNow("Client should be crea ted")
 	}
 	assert.Equal("Administrator", currentUser.Username)
+	assert.Equal(true, currentUser.IsAdministrator)
+}
 
+func TestRepository(t *testing.T) {
+	assert := assert.New(t)
+
+	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+
+	nuxeoClient.Create()
+
+	rootDocument, err := nuxeoClient.FetchDocumentRoot()
+
+	if err != nil {
+		assert.FailNow("Document should be fetched")
+	}
+
+	assert.Equal(rootDocument.Path, "/")
+
+	domain, err := nuxeoClient.FetchDocumentByPath("/default-domain")
+
+	if err != nil {
+		assert.FailNow("Document should be fetched")
+	}
+
+	assert.Equal(domain.Path, "/default-domain")
+
+	documents, err := domain.FetchChildren()
+
+	if err != nil {
+		assert.FailNow("Document should be fetched")
+	}
+
+	assert.Equal(len(documents.Entries), 3)
 }
