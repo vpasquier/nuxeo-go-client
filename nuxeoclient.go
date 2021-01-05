@@ -19,8 +19,9 @@ package nuxeoclient
 
 import (
 	"encoding/json"
-	"errors"
-	"log"
+	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -30,120 +31,112 @@ const (
 
 // Client interface
 type Client interface {
-	Login() (user, error)
-	FetchDocumentRoot() (document, error)
-	FetchDocumentByPath(path string) (document, error)
-	CreateDocument(input document) error
-	UpdateDocument(input document) error
-	DeleteDocument(uid string) error
+	Login() user
+	FetchDocumentRoot() document
+	FetchDocumentByPath(path string) document
+	CreateDocument(parentPath string, input document) document
+	UpdateDocument(input document) document
+	DeleteDocument(input document)
 	// Attack(uri string, body []byte, method string) ([]byte, error)
 	// AttachBlob(uid string) error
 	// BatchUpload() error
 	// Automation(op operation) (output, error)
 }
 
+func init() {
+	lvl, ok := os.LookupEnv("NUXEO_LOG_LEVEL")
+	log.SetOutput(os.Stdout)
+	// LOG_LEVEL default to info
+	if !ok {
+		lvl = "info"
+	}
+	ll, err := log.ParseLevel(lvl)
+	if err != nil {
+		ll = log.DebugLevel
+	}
+	log.SetLevel(ll)
+}
+
 // Create the client after applying configuration
-func (nuxeoClient *nuxeoClient) Login() (user, error) {
+func (nuxeoClient *nuxeoClient) Login() user {
+
+	log.Info("Logging in...")
 
 	url := nuxeoClient.url + "/api/v1/automation/login"
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Post(url)
 
-	if err != nil {
-		log.Printf("%v", err)
-		return user{}, errors.New("Client cannot be created")
-	}
-
-	data := resp.Body()
-
-	if !json.Valid(data) {
-		log.Printf("The response is not json validated")
-		return user{}, errors.New("Unmarshalling issue with the current user response")
-	}
-
 	var currentUser user
-	jsonErr := json.Unmarshal(resp.Body(), &currentUser)
+	HandleResponse(err, resp, &currentUser)
 
-	if jsonErr != nil {
-		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
-		return user{}, errors.New("Unmarshalling issue with the current user response")
-	}
+	log.Info("Logged in")
 
-	log.Println("Nuxeo Client Initialized")
-
-	return currentUser, nil
+	return currentUser
 }
 
-func (nuxeoClient *nuxeoClient) FetchDocumentRoot() (document, error) {
+func (nuxeoClient *nuxeoClient) FetchDocumentRoot() document {
 
 	url := nuxeoClient.url + "/api/v1/path//"
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Get(url)
 
-	if err != nil {
-		log.Printf("%v", err)
-		return document{}, errors.New("Error while fetching document")
-	}
-
-	data := resp.Body()
-
-	if !json.Valid(data) {
-		log.Printf("The response is not json validated")
-		return document{}, errors.New("Unmarshalling issue with the current document response")
-	}
-
 	var currentDoc document
-	jsonErr := json.Unmarshal(resp.Body(), &currentDoc)
+	HandleResponse(err, resp, &currentDoc)
 
-	if jsonErr != nil {
-		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
-		return document{}, errors.New("Unmarshalling issue with the current user response")
-	}
-
+	// Attach client to document
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc, nil
+	return currentDoc
 }
 
-func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) (document, error) {
+func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) document {
 
 	url := nuxeoClient.url + "/api/v1/path" + path
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Get(url)
 
-	if err != nil {
-		log.Printf("%v", err)
-		return document{}, errors.New("Error while fetching document")
-	}
-
-	data := resp.Body()
-
-	if !json.Valid(data) {
-		log.Printf("The response is not json validated")
-		return document{}, errors.New("Unmarshalling issue with the current document response")
-	}
-
 	var currentDoc document
-	jsonErr := json.Unmarshal(resp.Body(), &currentDoc)
-
-	if jsonErr != nil {
-		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
-		return document{}, errors.New("Unmarshalling issue with the current user response")
-	}
+	HandleResponse(err, resp, &currentDoc)
 
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc, nil
+	return currentDoc
 }
 
-func (nuxeoClient *nuxeoClient) CreateDocument(input document) error {
-	return nil
+func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document) document {
+	url := nuxeoClient.url + "/api/v1/path" + parentPath
+
+	body, err := json.Marshal(input)
+
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(url)
+
+	var currentDoc document
+	HandleResponse(err, resp, &currentDoc)
+
+	currentDoc.nuxeoClient = *nuxeoClient
+
+	return currentDoc
 }
 
-func (nuxeoClient *nuxeoClient) UpdateDocument(input document) error {
-	return nil
+func (nuxeoClient *nuxeoClient) UpdateDocument(input document) document {
+	url := nuxeoClient.url + "/api/v1/path" + input.Path
+
+	body, err := json.Marshal(input)
+
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(body).Put(url)
+
+	var currentDoc document
+	HandleResponse(err, resp, &currentDoc)
+
+	currentDoc.nuxeoClient = *nuxeoClient
+
+	return currentDoc
 }
 
-func (nuxeoClient *nuxeoClient) DeleteDocument(uid string) error {
-	return nil
+func (nuxeoClient *nuxeoClient) DeleteDocument(input document) {
+	url := nuxeoClient.url + "/api/v1/path" + input.Path
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Delete(url)
+
+	HandleResponse(err, resp, nil)
 }

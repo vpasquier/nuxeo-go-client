@@ -27,10 +27,7 @@ import (
 func TestSmokeClient(t *testing.T) {
 	assert := assert.New(t)
 	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
-	currentUser, err := nuxeoClient.Login()
-	if err != nil {
-		assert.FailNow("Client should be created")
-	}
+	currentUser := nuxeoClient.Login()
 	assert.Equal("Administrator", currentUser.Username)
 }
 
@@ -50,43 +47,54 @@ func TestClientOptions(t *testing.T) {
 	}
 
 	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Timeout(1).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Debug(false).Build()
-	currentUser, err := nuxeoClient.Login()
+	currentUser := nuxeoClient.Login()
 
-	if err != nil {
-		assert.FailNow("Client should be crea ted")
-	}
 	assert.Equal("Administrator", currentUser.Username)
 	assert.Equal(true, currentUser.IsAdministrator)
 }
 
-func TestRepository(t *testing.T) {
+func TestRepositoryFetch(t *testing.T) {
 	assert := assert.New(t)
 
 	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
 
 	nuxeoClient.Login()
 
-	rootDocument, err := nuxeoClient.FetchDocumentRoot()
-
-	if err != nil {
-		assert.FailNow("Document should be fetched")
-	}
+	rootDocument := nuxeoClient.FetchDocumentRoot()
 
 	assert.Equal(rootDocument.Path, "/")
 
-	domain, err := nuxeoClient.FetchDocumentByPath("/default-domain")
-
-	if err != nil {
-		assert.FailNow("Document should be fetched")
-	}
+	domain := nuxeoClient.FetchDocumentByPath("/default-domain")
 
 	assert.Equal(domain.Path, "/default-domain")
 
-	documents, err := domain.FetchChildren()
-
-	if err != nil {
-		assert.FailNow("Document should be fetched")
-	}
+	documents := domain.FetchChildren()
 
 	assert.Equal(len(documents.Entries), 3)
+}
+
+func TestRepositoryCRUD(t *testing.T) {
+	assert := assert.New(t)
+
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+
+	nuxeoClient.Login()
+
+	workspaces := nuxeoClient.FetchDocumentByPath("/nuxeo")
+
+	properties := map[string]string{
+		"dc:title": "New Document",
+	}
+
+	newDocument := document{
+		EntityType: "document",
+		Type:       "File",
+		Name:       "new_file_with_go",
+		Properties: properties,
+	}
+
+	newDocument = nuxeoClient.CreateDocument(workspaces.Path, newDocument)
+
+	assert.NotNil(newDocument.UID)
+	assert.Equal(newDocument.Path, "/nuxeo/new_file_with_go")
 }

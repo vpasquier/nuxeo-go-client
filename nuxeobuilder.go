@@ -1,9 +1,10 @@
 package nuxeoclient
 
 import (
-	"log"
 	"net/http"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -101,6 +102,14 @@ func (cb *clientBuilder) Build() Client {
 	log.Println("Creating Nuxeo Client...")
 
 	client := resty.New()
+
+	if val, ok := cb.headers["Content-Type"]; !ok {
+		log.Debug(val)
+		if cb.headers == nil {
+			cb.headers = make(map[string]string)
+		}
+		cb.headers["Content-Type"] = "application/json"
+	}
 
 	client.SetCookies(cb.cookies)
 	client.SetHeaders(cb.headers)

@@ -17,16 +17,14 @@
 
 package nuxeoclient
 
-import (
-	"encoding/json"
-	"errors"
-	"log"
-)
-
 // Document represents a Nuxeo document
 type document struct {
-	UID         string `json:"uid"`
-	Path        string `json:"path"`
+	EntityType  string            `json:"entity-type"`
+	UID         string            `json:"uid"`
+	Path        string            `json:"path"`
+	Type        string            `json:"type"`
+	Name        string            `json:"name"`
+	Properties  map[string]string `json:"properties"`
 	nuxeoClient nuxeoClient
 }
 
@@ -34,23 +32,12 @@ type documents struct {
 	Entries []document `json:"entries"`
 }
 
-func (doc document) FetchChildren() (documents, error) {
+func (doc document) FetchChildren() documents {
 	url := doc.nuxeoClient.url + "/api/v1/path" + doc.Path + "/@children"
 
 	resp, err := doc.nuxeoClient.client.R().EnableTrace().Get(url)
-
-	if err != nil {
-		log.Printf("%v", err)
-		return documents{}, errors.New("Error while fetching document")
-	}
-
 	var documents documents
-	jsonErr := json.Unmarshal(resp.Body(), &documents)
+	HandleResponse(err, resp, &documents)
 
-	if jsonErr != nil {
-		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
-		return documents, errors.New("Unmarshalling issue with the current user response")
-	}
-
-	return documents, nil
+	return documents
 }
