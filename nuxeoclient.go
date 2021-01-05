@@ -1,12 +1,26 @@
+// (C) Copyright 2021 Nuxeo (http:nuxeo.com) and others.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+// 	http:www.apache.orglicensesLICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Contributors:
+// 	Vladimir Pasquier <vpasquier@nuxeo.com>
+
 package nuxeoclient
 
 import (
 	"encoding/json"
 	"errors"
 	"log"
-	"net/http"
-	"time"
-	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -16,142 +30,20 @@ const (
 
 // Client interface
 type Client interface {
-	Create() (user, error)
+	Login() (user, error)
 	FetchDocumentRoot() (document, error)
 	FetchDocumentByPath(path string) (document, error)
-}
-
-// ClientBuilder interface
-type ClientBuilder interface {
-	URL(string) ClientBuilder
-	Username(string) ClientBuilder
-	Password(string) ClientBuilder
-	Token(string) ClientBuilder
-	Debug(bool) ClientBuilder
-	Timeout(int) ClientBuilder
-	Headers(map[string]string) ClientBuilder
-	Cookies([]*http.Cookie) ClientBuilder
-	Repository(string) ClientBuilder
-	Build() Client
-}
-
-// Mutable
-type clientBuilder struct {
-	url         string
-	username    string
-	password    string
-	token       string
-	debug       bool
-	enableTrace bool
-	timeout     int
-	headers     map[string]string
-	cookies     []*http.Cookie
-	repository  string
-}
-
-// Immutable
-type nuxeoClient struct {
-	url         string
-	username    string
-	password    string
-	token       string
-	debug       bool
-	enableTrace bool
-	timeout     int
-	headers     map[string]string
-	cookies     []*http.Cookie
-	repository  string
-	client      *resty.Client
-}
-
-func (cb *clientBuilder) URL(url string) ClientBuilder {
-	cb.url = url
-	return cb
-}
-
-func (cb *clientBuilder) Username(username string) ClientBuilder {
-	cb.username = username
-	return cb
-}
-
-func (cb *clientBuilder) Password(password string) ClientBuilder {
-	cb.password = password
-	return cb
-}
-
-func (cb *clientBuilder) Token(token string) ClientBuilder {
-	cb.token = token
-	return cb
-}
-
-func (cb *clientBuilder) Repository(repository string) ClientBuilder {
-	cb.repository = repository
-	return cb
-}
-
-func (cb *clientBuilder) Timeout(timeout int) ClientBuilder {
-	cb.timeout = timeout
-	return cb
-}
-
-func (cb *clientBuilder) Headers(headers map[string]string) ClientBuilder {
-	cb.headers = headers
-	return cb
-}
-
-func (cb *clientBuilder) Cookies(cookies []*http.Cookie) ClientBuilder {
-	cb.cookies = cookies
-	return cb
-}
-
-func (cb *clientBuilder) Debug(debug bool) ClientBuilder {
-	cb.debug = debug
-	return cb
-}
-
-func (cb *clientBuilder) Build() Client {
-
-	log.Println("Creating Nuxeo Client...")
-
-	client := resty.New()
-
-	client.SetCookies(cb.cookies)
-	client.SetHeaders(cb.headers)
-	client.SetDebug(cb.debug)
-	client.SetTimeout(time.Duration(cb.timeout) * time.Minute)
-
-	if cb.token == "" {
-		client.SetBasicAuth(cb.username, cb.password)
-	} else {
-		client.SetAuthToken(cb.token)
-	}
-
-	url := cb.url
-	if url == "" {
-		url = DefaultURL
-	}
-	cb.url = url
-
-	return &nuxeoClient{
-		url:        cb.url,
-		username:   cb.username,
-		password:   cb.password,
-		debug:      cb.debug,
-		timeout:    cb.timeout,
-		headers:    cb.headers,
-		cookies:    cb.cookies,
-		repository: cb.repository,
-		client:     client,
-	}
-}
-
-// NuxeoClient is the Nuxeo client builder
-func NuxeoClient() ClientBuilder {
-	return &clientBuilder{}
+	CreateDocument(input document) error
+	UpdateDocument(input document) error
+	DeleteDocument(uid string) error
+	// Attack(uri string, body []byte, method string) ([]byte, error)
+	// AttachBlob(uid string) error
+	// BatchUpload() error
+	// Automation(op operation) (output, error)
 }
 
 // Create the client after applying configuration
-func (nuxeoClient *nuxeoClient) Create() (user, error) {
+func (nuxeoClient *nuxeoClient) Login() (user, error) {
 
 	url := nuxeoClient.url + "/api/v1/automation/login"
 
@@ -165,7 +57,7 @@ func (nuxeoClient *nuxeoClient) Create() (user, error) {
 	data := resp.Body()
 
 	if !json.Valid(data) {
-		log.Panicf("The response is not json validated")
+		log.Printf("The response is not json validated")
 		return user{}, errors.New("Unmarshalling issue with the current user response")
 	}
 
@@ -173,7 +65,7 @@ func (nuxeoClient *nuxeoClient) Create() (user, error) {
 	jsonErr := json.Unmarshal(resp.Body(), &currentUser)
 
 	if jsonErr != nil {
-		log.Panicf("Can't create Nuxeo Client cause %v", jsonErr)
+		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
 		return user{}, errors.New("Unmarshalling issue with the current user response")
 	}
 
@@ -196,7 +88,7 @@ func (nuxeoClient *nuxeoClient) FetchDocumentRoot() (document, error) {
 	data := resp.Body()
 
 	if !json.Valid(data) {
-		log.Panicf("The response is not json validated")
+		log.Printf("The response is not json validated")
 		return document{}, errors.New("Unmarshalling issue with the current document response")
 	}
 
@@ -204,7 +96,7 @@ func (nuxeoClient *nuxeoClient) FetchDocumentRoot() (document, error) {
 	jsonErr := json.Unmarshal(resp.Body(), &currentDoc)
 
 	if jsonErr != nil {
-		log.Panicf("Can't create Nuxeo Client cause %v", jsonErr)
+		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
 		return document{}, errors.New("Unmarshalling issue with the current user response")
 	}
 
@@ -227,7 +119,7 @@ func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) (document, erro
 	data := resp.Body()
 
 	if !json.Valid(data) {
-		log.Panicf("The response is not json validated")
+		log.Printf("The response is not json validated")
 		return document{}, errors.New("Unmarshalling issue with the current document response")
 	}
 
@@ -235,11 +127,23 @@ func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) (document, erro
 	jsonErr := json.Unmarshal(resp.Body(), &currentDoc)
 
 	if jsonErr != nil {
-		log.Panicf("Can't create Nuxeo Client cause %v", jsonErr)
+		log.Printf("Can't create Nuxeo Client cause %v", jsonErr)
 		return document{}, errors.New("Unmarshalling issue with the current user response")
 	}
 
 	currentDoc.nuxeoClient = *nuxeoClient
 
 	return currentDoc, nil
+}
+
+func (nuxeoClient *nuxeoClient) CreateDocument(input document) error {
+	return nil
+}
+
+func (nuxeoClient *nuxeoClient) UpdateDocument(input document) error {
+	return nil
+}
+
+func (nuxeoClient *nuxeoClient) DeleteDocument(uid string) error {
+	return nil
 }
