@@ -39,37 +39,31 @@ import "github.com/vpasquier/nuxeo-go-client"
 
 ### Usage
 
-#### Creating a Client
+#### Creating a Client - Authentication
+
+- Basic Auth:
 
 ```go
-  nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Build()
-  currentUser, err := nuxeoClient.Create()
-  log.println(currentUser.Username)
+nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+currentUser, err := nuxeoClient.Login()
+log.println(currentUser.Username)
 ```
 
-### Authentication
-
-Basic:
+- Token:
 
 ```go
-  nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Build()
-  currentUser, err := nuxeoClient.Create()
-  log.println(currentUser.Username)
-```
-
-Token:
-
-```go
-  nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Token("XXXX").Build()
-  currentUser, err := nuxeoClient.Create()
-  log.println(currentUser.Username)
+nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Token("XXXX").Build()
+currentUser, err := nuxeoClient.Login()
+log.println(currentUser.Username)
 ```
 
 #### Options
 
+- Headers:
+
 ```go
 var headers map[string]string
-headers["content-type"] = "application/json"
+headers["key"] = "value"
 
 var cookies []*http.Cookie
 var cookie *http.Cookie
@@ -82,60 +76,110 @@ cookie := &http.Cookie{
       HttpOnly: true,
       Secure: false,
     }
-nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Timeout(10).Headers(headers).Cookies().Build()
+
+nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Timeout(1).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Build()
 ```
 
-```go
-nuxeoClient := NuxeoClient().Schemas("dublincore", "common")
-                         .Enrichers("acls", "preview")
-```
+- Schemas/Enrichers (schemas are by default empty, should be set to "*" to get all of them)
 
 ```go
-// To fetch all schemas
-nuxeoClient := NuxeoClient().Schemas("*")
+nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Schemas([]string{"dublincore", "common"}).Enrichers("acls", "preview").Build()                       
 ```
 
+- Debug (log request/response information - by default `false`):
+
 ```go
-// Log out
-NuxeoClient().destroy()
+nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(true).Build()
 ```
+
+- More traces on the http calls and others: 
+
+set env var `NUXEO_LOG_LEVEL` to `debug` (by default `info`)
 
 #### APIs
 
-General rule:
+#### Repository API
 
-- When using `fetch` methods, `NuxeoClient` is making remote calls.
-- When using `get` methods, objects are retrieved from memory.
+```go
+// Fetch the root document
+rootDocument, err := nuxeoClient.FetchDocumentRoot()
+```
+
+```go
+// Fetch document by path
+domain, err := nuxeoClient.FetchDocumentByPath("/default-domain")
+```
+
+```go
+// Create a document
+properties := map[string]interface{}{
+	"dc:title": "New Document",
+}
+
+newDocument := document{
+	EntityType: "document",
+	Type:       "Workspaces",
+	Name:       "new_file_with_go",
+	Properties: properties,
+}
+
+newDocument, err = nuxeoClient.CreateDocument(domain.Path, newDocument)
+```
+
+```go
+// Update a document
+newDocument.Properties["dc:title"] = "Document Updated"
+updatedDocument, err := nuxeoClient.UpdateDocument(newDocument)
+```
+
+```java
+// Delete a document
+err = nuxeoClient.DeleteDocument(updatedDocument)
+```
+
+```go
+// Fetch children
+documents := domain.FetchChildren()
+```
+
+```go
+// Get Blob
+```
+
+```go
+// Query
+
+```
+
+```go
+// Async call
+```
+
+```go
+// Directories
+```
 
 #### Operation API
 
 ```go
-// Fetch the root document
+// Fetch document
 document := nuxeoClient.operation(Operations.REPOSITORY_GET_DOCUMENT).param("value", "/").execute();
 ```
 
 ```go
-// Fetch the root document
+// Query
 documents := nuxeoClient.operation("Repository.Query")
                             .param("query", "SELECT * FROM Document")
                             .execute();
 ```
 
 ```go
-// with blob
+// Attach blobs
 fileBlob := new FileBlob(File file);
 nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
            .voidOperation(true)
            .param("document", "/folder/file")
            .input(fileBlob)
-           .execute();
-
-// or with stream
-streamBlob := new StreamBlob(InputStream stream, String filename);
-nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
-           .voidOperation(true)
-           .param("document", "/folder/file")
-           .input(streamBlob)
            .execute();
 
 inputBlobs := new []Blobs();
@@ -147,51 +191,6 @@ Blobs blobs = nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
                          .param("document", "/folder/file")
                          .input(inputBlobs)
                          .execute();
-
-// you need to close the stream or to get the file
-blob := nuxeoClient.operation(Operations.DOCUMENT_GET_BLOB)
-                       .input("folder/file")
-                       .execute();
-```
-
-#### Repository API
-
-```go
-// Fetch the root document
-rootDocument := nuxeoClient.repository().fetchDocumentRoot();
-```
-
-```go
-// Fetch document by path
-folder := nuxeoClient.repository().fetchDocumentByPath("/folder_2");
-```
-
-```go
-// Create a document
-document := Document.createWithName("file", "File");
-document.setPropertyValue("dc:title", "new title");
-result := nuxeoClient.repository().createDocumentByPath("/folder_1", document);
-```
-
-```go
-// Update a document
-document := nuxeoClient.repository().fetchDocumentByPath("/folder_1/note_0");
-documentUpdated := Document.createWithId(document.getId(), "Note");
-documentUpdated.setPropertyValue("dc:title", "note updated");
-documentUpdated.setPropertyValue("dc:nature", "test");
-documentUpdated := nuxeoClient.repository().updateDocument(documentUpdated);
-```
-
-```java
-// Delete a document
-Document documentToDelete = nuxeoClient.repository().fetchDocumentByPath("/folder_1/note_1");
-nuxeoClient.repository().deleteDocument(documentToDelete);
-```
-
-```go
-// Fetch children
-folder := nuxeoClient.repository().fetchDocumentByPath("/folder_2");
-children := folder.fetchChildren();
 ```
 
 ```go
@@ -200,46 +199,7 @@ file := nuxeoClient.repository().fetchDocumentByPath("/folder_2/file");
 blob := file.fetchBlob();
 ```
 
-```go
-// Execute query
-documents := nuxeoClient.repository().query("SELECT * From Note");
-```
-
-```go
-// Fetch document asynchronously with callback
-nuxeoClient.repository().fetchDocumentRoot(new Callback<Document>() {
-            @Override
-            public void onResponse(Call<Document> call, Response<Document>
-                    response) {
-                if (!response.isSuccessful()) {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    NuxeoClientException nuxeoClientException;
-                    try {
-                        nuxeoClientException = objectMapper.readValue(response.errorBody().string(),
-                                NuxeoClientException.class);
-                    } catch (IOException reason) {
-                        throw new NuxeoClientException(reason);
-                    }
-                    fail(nuxeoClientException.getRemoteStackTrace());
-                }
-                Document folder = response.body();
-                assertNotNull(folder);
-                assertEquals("Folder", folder.getType());
-                assertEquals("document", folder.getEntityType());
-                assertEquals("/folder_2", folder.getPath());
-                assertEquals("Folder 2", folder.getTitle());
-            }
-
-            @Override
-            public void onFailure(Call<Document> call, Throwable t) {
-                fail(t.getMessage());
-            }
-        });
-```
-
 #### Batch Upload
-
-Batch uploads are executed through the `org.nuxeo.client.objects.upload.BatchUploadManager`.
 
 ```java
 // Batch Upload Manager
