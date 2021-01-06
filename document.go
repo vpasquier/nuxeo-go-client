@@ -19,12 +19,12 @@ package nuxeoclient
 
 // Document represents a Nuxeo document
 type document struct {
-	EntityType  string            `json:"entity-type"`
-	UID         string            `json:"uid"`
-	Path        string            `json:"path"`
-	Type        string            `json:"type"`
-	Name        string            `json:"name"`
-	Properties  map[string]string `json:"properties"`
+	EntityType  string                 `json:"entity-type"`
+	UID         string                 `json:"uid"`
+	Path        string                 `json:"path"`
+	Type        string                 `json:"type"`
+	Name        string                 `json:"name"`
+	Properties  map[string]interface{} `json:"properties"`
 	nuxeoClient nuxeoClient
 }
 

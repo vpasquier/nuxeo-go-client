@@ -19,13 +19,14 @@ package nuxeoclient
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 )
 
 // HandleResponse handle all responses
-func HandleResponse(err error, resp *resty.Response, q interface{}) {
+func HandleResponse(err error, resp *resty.Response, q interface{}) error {
 
 	// Explore response object
 	log.Debug("Response Info:")
@@ -53,23 +54,28 @@ func HandleResponse(err error, resp *resty.Response, q interface{}) {
 	log.Debug("  ConnIdleTime  :", ti.ConnIdleTime)
 
 	if err != nil {
-		log.Fatal(err)
+		return errors.Unwrap(err)
 	}
 
 	data := resp.Body()
 
-	if !json.Valid(data) {
-		log.Fatal("Json response is not valid")
+	if resp.StatusCode() != 204 && !json.Valid(data) {
+		return errors.New("Json response is not valid")
+	}
+
+	if resp.StatusCode() == 404 {
+		return errors.New("Cannot find resources")
 	}
 
 	if q == nil {
-		return
+		return nil
 	}
 
 	jsonErr := json.Unmarshal(data, q)
 
 	if jsonErr != nil {
-		log.Fatal(jsonErr)
+		return errors.Unwrap(jsonErr)
 	}
 
+	return nil
 }

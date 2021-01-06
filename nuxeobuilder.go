@@ -17,6 +17,8 @@ type ClientBuilder interface {
 	Token(string) ClientBuilder
 	Debug(bool) ClientBuilder
 	Timeout(int) ClientBuilder
+	Schemas([]string) ClientBuilder
+	Enrichers([]string) ClientBuilder
 	Headers(map[string]string) ClientBuilder
 	Cookies([]*http.Cookie) ClientBuilder
 	Repository(string) ClientBuilder
@@ -32,6 +34,8 @@ type clientBuilder struct {
 	debug       bool
 	enableTrace bool
 	timeout     int
+	schemas     []string
+	enrichers   []string
 	headers     map[string]string
 	cookies     []*http.Cookie
 	repository  string
@@ -46,6 +50,8 @@ type nuxeoClient struct {
 	debug       bool
 	enableTrace bool
 	timeout     int
+	schemas     []string
+	enrichers   []string
 	headers     map[string]string
 	cookies     []*http.Cookie
 	repository  string
@@ -87,6 +93,17 @@ func (cb *clientBuilder) Headers(headers map[string]string) ClientBuilder {
 	return cb
 }
 
+func (cb *clientBuilder) Schemas(schemas []string) ClientBuilder {
+
+	cb.schemas = schemas
+	return cb
+}
+
+func (cb *clientBuilder) Enrichers(enrichers []string) ClientBuilder {
+	cb.enrichers = enrichers
+	return cb
+}
+
 func (cb *clientBuilder) Cookies(cookies []*http.Cookie) ClientBuilder {
 	cb.cookies = cookies
 	return cb
@@ -109,6 +126,14 @@ func (cb *clientBuilder) Build() Client {
 			cb.headers = make(map[string]string)
 		}
 		cb.headers["Content-Type"] = "application/json"
+	}
+
+	for i := 0; i < len(cb.schemas); i++ {
+		cb.headers["properties"] = cb.schemas[i]
+	}
+
+	for i := 0; i < len(cb.enrichers); i++ {
+		cb.headers["enrichers.document"] = cb.enrichers[i]
 	}
 
 	client.SetCookies(cb.cookies)

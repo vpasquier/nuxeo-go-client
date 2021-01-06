@@ -31,12 +31,12 @@ const (
 
 // Client interface
 type Client interface {
-	Login() user
-	FetchDocumentRoot() document
-	FetchDocumentByPath(path string) document
-	CreateDocument(parentPath string, input document) document
-	UpdateDocument(input document) document
-	DeleteDocument(input document)
+	Login() (user, error)
+	FetchDocumentRoot() (document, error)
+	FetchDocumentByPath(path string) (document, error)
+	CreateDocument(parentPath string, input document) (document, error)
+	UpdateDocument(input document) (document, error)
+	DeleteDocument(input document) error
 	// Attack(uri string, body []byte, method string) ([]byte, error)
 	// AttachBlob(uid string) error
 	// BatchUpload() error
@@ -58,7 +58,7 @@ func init() {
 }
 
 // Create the client after applying configuration
-func (nuxeoClient *nuxeoClient) Login() user {
+func (nuxeoClient *nuxeoClient) Login() (user, error) {
 
 	log.Info("Logging in...")
 
@@ -67,43 +67,43 @@ func (nuxeoClient *nuxeoClient) Login() user {
 	resp, err := nuxeoClient.client.R().EnableTrace().Post(url)
 
 	var currentUser user
-	HandleResponse(err, resp, &currentUser)
+	err = HandleResponse(err, resp, &currentUser)
 
 	log.Info("Logged in")
 
-	return currentUser
+	return currentUser, err
 }
 
-func (nuxeoClient *nuxeoClient) FetchDocumentRoot() document {
+func (nuxeoClient *nuxeoClient) FetchDocumentRoot() (document, error) {
 
 	url := nuxeoClient.url + "/api/v1/path//"
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Get(url)
 
 	var currentDoc document
-	HandleResponse(err, resp, &currentDoc)
+	err = HandleResponse(err, resp, &currentDoc)
 
 	// Attach client to document
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc
+	return currentDoc, err
 }
 
-func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) document {
+func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) (document, error) {
 
 	url := nuxeoClient.url + "/api/v1/path" + path
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Get(url)
 
 	var currentDoc document
-	HandleResponse(err, resp, &currentDoc)
+	err = HandleResponse(err, resp, &currentDoc)
 
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc
+	return currentDoc, err
 }
 
-func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document) document {
+func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document) (document, error) {
 	url := nuxeoClient.url + "/api/v1/path" + parentPath
 
 	body, err := json.Marshal(input)
@@ -111,32 +111,33 @@ func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document
 	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(url)
 
 	var currentDoc document
-	HandleResponse(err, resp, &currentDoc)
+	err = HandleResponse(err, resp, &currentDoc)
 
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc
+	return currentDoc, err
 }
 
-func (nuxeoClient *nuxeoClient) UpdateDocument(input document) document {
+func (nuxeoClient *nuxeoClient) UpdateDocument(input document) (document, error) {
 	url := nuxeoClient.url + "/api/v1/path" + input.Path
 
 	body, err := json.Marshal(input)
 
-	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(body).Put(url)
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Put(url)
 
 	var currentDoc document
-	HandleResponse(err, resp, &currentDoc)
+	err = HandleResponse(err, resp, &currentDoc)
 
 	currentDoc.nuxeoClient = *nuxeoClient
 
-	return currentDoc
+	return currentDoc, err
 }
 
-func (nuxeoClient *nuxeoClient) DeleteDocument(input document) {
+func (nuxeoClient *nuxeoClient) DeleteDocument(input document) error {
 	url := nuxeoClient.url + "/api/v1/path" + input.Path
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Delete(url)
 
-	HandleResponse(err, resp, nil)
+	err = HandleResponse(err, resp, nil)
+	return err
 }
