@@ -20,6 +20,8 @@ package nuxeoclient
 import (
 	"encoding/json"
 	"os"
+	"strconv"
+	"net/url"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -37,6 +39,9 @@ type Client interface {
 	CreateDocument(parentPath string, input document) (document, error)
 	UpdateDocument(input document) (document, error)
 	DeleteDocument(input document) error
+	QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (RecordSet, error)
+	Query(query string) (RecordSet, error)
+	Directory(directory string) (DirectorySet, error)
 	// Attack(uri string, body []byte, method string) ([]byte, error)
 	// AttachBlob(uid string) error
 	// BatchUpload() error
@@ -141,3 +146,59 @@ func (nuxeoClient *nuxeoClient) DeleteDocument(input document) error {
 	err = HandleResponse(err, resp, nil)
 	return err
 }
+
+func (nuxeoClient *nuxeoClient) Query(query string) (RecordSet, error) {
+	return nuxeoClient.QueryWithParams(query, 0, 0, 0, 0, "", "", "")
+}
+
+func (nuxeoClient *nuxeoClient) QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (RecordSet, error) {
+
+	baseURL, err := url.Parse(nuxeoClient.url)
+
+	_ = err
+
+	baseURL.Path += "/api/v1/search/lang/NXQL/execute"
+
+	// Prepare Query Parameters
+	params := url.Values{}
+	params.Add("query", query)
+	params.Add("pageSize", strconv.Itoa(pageSize))
+	params.Add("currentPageIndex", strconv.Itoa(currentPageIndex))
+	params.Add("offset", strconv.Itoa(offset))
+	params.Add("maxResults", strconv.Itoa(maxResults))
+	params.Add("sortBy", sortBy)
+	if queryParams != "" {
+		params.Add("queryParams", queryParams)
+	}
+
+	baseURL.RawQuery = params.Encode()
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Get(baseURL.String())
+
+	var recordSet RecordSet
+	err = HandleResponse(err, resp, &recordSet)
+
+	for key, doc := range recordSet.Documents {
+		_ = key
+		doc.nuxeoClient = *nuxeoClient
+	}
+
+	return recordSet, err
+}
+
+func (nuxeoClient *nuxeoClient) Directory(directory string) (DirectorySet, error) {
+	uri := nuxeoClient.url + "/api/v1/directory/" + directory
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Get(uri)
+
+	var directorySet DirectorySet
+	err = HandleResponse(err, resp, &directorySet)
+
+	return directorySet, err
+}
+
+// func (nuxeoClient *nuxeoClient) FetchBlob()(Blob, error){
+// 	profileImgBytes, _ := ioutil.ReadFile("/Users/jeeva/test-img.png")
+// notesBytes, _ := ioutil.ReadFile("/Users/jeeva/text-file.txt")
+
+// }

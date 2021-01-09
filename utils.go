@@ -28,6 +28,10 @@ import (
 // HandleResponse handle all responses
 func HandleResponse(err error, resp *resty.Response, q interface{}) error {
 
+	if err != nil {
+		return errors.Unwrap(err)
+	}
+
 	// Explore response object
 	log.Debug("Response Info:")
 	log.Debug("  Error      :", err)
@@ -52,10 +56,6 @@ func HandleResponse(err error, resp *resty.Response, q interface{}) error {
 	log.Debug("  IsConnReused  :", ti.IsConnReused)
 	log.Debug("  IsConnWasIdle :", ti.IsConnWasIdle)
 	log.Debug("  ConnIdleTime  :", ti.ConnIdleTime)
-
-	if err != nil {
-		return errors.Unwrap(err)
-	}
 
 	data := resp.Body()
 

@@ -144,19 +144,61 @@ documents := domain.FetchChildren()
 
 ```go
 // Get Blob
+blob := document.FetchBlob()
+blob := document.FetchCustomBlob("customfile:content")
+```
+
+For information:
+
+```go
+type Blob struct {
+  filename string
+  size int
+  file File?
+}
 ```
 
 ```go
 // Query
+resultSet, err := nuxeoClient.Query("SELECT * FROM Domain")
+assert.Equal(len(resultSet.Documents), 1)
+```
 
+for information:
+
+```go
+type RecordSet struct {
+	Documents        []document `json:"entries"`
+	TotalSize        int        `json:"totalSize"`
+	CurrentPageIndex int        `json:"currentPageIndex"`
+	NumberOfPages    int        `json:"numberOfPages"`
+}
 ```
 
 ```go
-// Async call
+// Async call for downloading a blob
+
 ```
 
 ```go
 // Directories
+resultSet, err := nuxeoClient.Directory("continent")
+```
+
+For information:
+
+```go
+// Directory represents a Nuxeo directory
+type Directory struct {
+	directoryName string                 `json:"directoryName"`
+	id            string                 `json:"id"`
+	properties    map[string]interface{} `json:"properties"`
+}
+
+// DirectorySet represents a Nuxeo directory set
+type DirectorySet struct {
+	entries []Directory `json:"entries"`
+}
 ```
 
 #### Operation API

@@ -26,7 +26,7 @@ import (
 
 func TestSmokeClient(t *testing.T) {
 	assert := assert.New(t)
-	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
 	currentUser, err := nuxeoClient.Login()
 	if err != nil {
 		assert.Fail("call error")
@@ -49,7 +49,7 @@ func TestClientOptions(t *testing.T) {
 		},
 	}
 
-	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Timeout(1).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Debug(false).Build()
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Timeout(1).Headers(headers).Cookies(cookies).Username("Administrator").Password("Administrator").Debug(false).Build()
 	currentUser, err := nuxeoClient.Login()
 
 	if err != nil {
@@ -57,20 +57,20 @@ func TestClientOptions(t *testing.T) {
 	}
 
 	assert.Equal("Administrator", currentUser.Username)
-	assert.Equal(true, currentUser.IsAdministrator)
+	assert.True(currentUser.IsAdministrator)
 }
 
 func TestRepositoryFetch(t *testing.T) {
 	assert := assert.New(t)
 
-	nuxeoClient := NuxeoClient().URL("https://demo.nuxeo.com/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
 
 	nuxeoClient.Login()
 
 	rootDocument, err := nuxeoClient.FetchDocumentRoot()
 
 	if err != nil {
-		assert.Fail("call error")
+		assert.Fail("call error", err)
 	}
 
 	assert.Equal(rootDocument.Path, "/")
@@ -81,11 +81,11 @@ func TestRepositoryFetch(t *testing.T) {
 		assert.Fail("call error")
 	}
 
-	assert.Equal(domain.Path, "/default-domain")
+	assert.Equal("/default-domain", domain.Path)
 
 	documents := domain.FetchChildren()
 
-	assert.Equal(len(documents.Entries), 3)
+	assert.Equal(3, len(documents.Documents))
 }
 
 func TestRepositoryCRUD(t *testing.T) {
@@ -115,29 +115,60 @@ func TestRepositoryCRUD(t *testing.T) {
 	newDocument, err = nuxeoClient.CreateDocument(workspaces.Path, newDocument)
 
 	if err != nil {
-		assert.Fail("call error")
+		assert.Fail("call error", err)
 	}
 
 	assert.NotNil(newDocument.UID)
-	assert.Equal(newDocument.Path, "/nuxeo/new_file_with_go")
-	assert.Equal(newDocument.Properties["dc:title"], "New Document")
+	assert.Equal("/nuxeo/new_file_with_go", newDocument.Path)
+	assert.Equal("New Document", newDocument.Properties["dc:title"])
 
 	newDocument.Properties["dc:title"] = "Document Updated"
 	updatedDocument, err := nuxeoClient.UpdateDocument(newDocument)
 
 	if err != nil {
-		assert.Fail("call error")
+		assert.Fail("call error", err)
 	}
 
-	assert.Equal(updatedDocument.Properties["dc:title"], "Document Updated")
+	assert.Equal("Document Updated", updatedDocument.Properties["dc:title"])
 
 	err = nuxeoClient.DeleteDocument(updatedDocument)
 	if err != nil {
-		assert.Fail("call error")
+		assert.Fail("call error", err)
 	}
 
 	updatedDocument, err = nuxeoClient.FetchDocumentByPath(updatedDocument.Path)
 	if err == nil {
 		assert.Fail("This document should not be found")
 	}
+}
+
+func TestRepositoryQuery(t *testing.T) {
+	assert := assert.New(t)
+
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+
+	nuxeoClient.Login()
+
+	resultSet, err := nuxeoClient.Query("SELECT * FROM Domain")
+
+	if err != nil {
+		assert.Fail("call error", err)
+	}
+
+	assert.Equal(1, len(resultSet.Documents))
+}
+func TestRepositoryDirectory(t *testing.T) {
+	assert := assert.New(t)
+
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(false).Build()
+
+	nuxeoClient.Login()
+
+	resultSet, err := nuxeoClient.Directory("continent")
+
+	if err != nil {
+		assert.Fail("call error", err)
+	}
+
+	assert.Equal(7, len(resultSet.Entries))
 }

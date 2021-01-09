@@ -136,6 +136,10 @@ func (cb *clientBuilder) Build() Client {
 		cb.headers["enrichers.document"] = cb.enrichers[i]
 	}
 
+	if cb.repository != "" {
+		cb.headers["Repository"] = cb.repository
+	}
+
 	client.SetCookies(cb.cookies)
 	client.SetHeaders(cb.headers)
 	client.SetDebug(cb.debug)
