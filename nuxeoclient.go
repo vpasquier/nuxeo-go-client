@@ -19,9 +19,11 @@ package nuxeoclient
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"strconv"
-	"net/url"
+
+	"github.com/go-resty/resty/v2"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -36,16 +38,18 @@ type Client interface {
 	Login() (user, error)
 	FetchDocumentRoot() (document, error)
 	FetchDocumentByPath(path string) (document, error)
+	AsyncFetchDocumentByPath(path string, c chan document)
 	CreateDocument(parentPath string, input document) (document, error)
+	AsyncCreateDocument(parentPath string, input document, c chan document)
 	UpdateDocument(input document) (document, error)
+	AsyncUpdateDocument(input document, c chan document)
 	DeleteDocument(input document) error
-	QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (RecordSet, error)
-	Query(query string) (RecordSet, error)
+	QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (recordSet, error)
+	Query(query string) (recordSet, error)
+	AsyncQuery(query string, c chan recordSet)
 	Directory(directory string) (DirectorySet, error)
-	// Attack(uri string, body []byte, method string) ([]byte, error)
-	// AttachBlob(uid string) error
-	// BatchUpload() error
-	// Automation(op operation) (output, error)
+	Attack(uri string, body []byte, method string) ([]byte, error)
+	Automation() Automation
 }
 
 func init() {
@@ -65,16 +69,12 @@ func init() {
 // Create the client after applying configuration
 func (nuxeoClient *nuxeoClient) Login() (user, error) {
 
-	log.Info("Logging in...")
-
 	url := nuxeoClient.url + "/api/v1/automation/login"
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Post(url)
 
 	var currentUser user
 	err = HandleResponse(err, resp, &currentUser)
-
-	log.Info("Logged in")
 
 	return currentUser, err
 }
@@ -108,6 +108,24 @@ func (nuxeoClient *nuxeoClient) FetchDocumentByPath(path string) (document, erro
 	return currentDoc, err
 }
 
+func (nuxeoClient *nuxeoClient) AsyncFetchDocumentByPath(path string, c chan document) {
+
+	url := nuxeoClient.url + "/api/v1/path" + path
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Get(url)
+
+	var currentDoc document
+	err = HandleResponse(err, resp, &currentDoc)
+
+	if err != nil {
+		panic(err)
+	}
+
+	currentDoc.nuxeoClient = *nuxeoClient
+
+	c <- currentDoc
+}
+
 func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document) (document, error) {
 	url := nuxeoClient.url + "/api/v1/path" + parentPath
 
@@ -121,6 +139,25 @@ func (nuxeoClient *nuxeoClient) CreateDocument(parentPath string, input document
 	currentDoc.nuxeoClient = *nuxeoClient
 
 	return currentDoc, err
+}
+
+func (nuxeoClient *nuxeoClient) AsyncCreateDocument(parentPath string, input document, c chan document) {
+	url := nuxeoClient.url + "/api/v1/path" + parentPath
+
+	body, err := json.Marshal(input)
+
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(url)
+
+	var currentDoc document
+	err = HandleResponse(err, resp, &currentDoc)
+
+	if err != nil {
+		panic(err)
+	}
+
+	currentDoc.nuxeoClient = *nuxeoClient
+
+	c <- currentDoc
 }
 
 func (nuxeoClient *nuxeoClient) UpdateDocument(input document) (document, error) {
@@ -138,6 +175,25 @@ func (nuxeoClient *nuxeoClient) UpdateDocument(input document) (document, error)
 	return currentDoc, err
 }
 
+func (nuxeoClient *nuxeoClient) AsyncUpdateDocument(input document, c chan document) {
+	url := nuxeoClient.url + "/api/v1/path" + input.Path
+
+	body, err := json.Marshal(input)
+
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Put(url)
+
+	var currentDoc document
+	err = HandleResponse(err, resp, &currentDoc)
+
+	if err != nil {
+		panic(err)
+	}
+
+	currentDoc.nuxeoClient = *nuxeoClient
+
+	c <- currentDoc
+}
+
 func (nuxeoClient *nuxeoClient) DeleteDocument(input document) error {
 	url := nuxeoClient.url + "/api/v1/path" + input.Path
 
@@ -147,11 +203,20 @@ func (nuxeoClient *nuxeoClient) DeleteDocument(input document) error {
 	return err
 }
 
-func (nuxeoClient *nuxeoClient) Query(query string) (RecordSet, error) {
+func (nuxeoClient *nuxeoClient) Query(query string) (recordSet, error) {
 	return nuxeoClient.QueryWithParams(query, 0, 0, 0, 0, "", "", "")
 }
 
-func (nuxeoClient *nuxeoClient) QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (RecordSet, error) {
+func (nuxeoClient *nuxeoClient) AsyncQuery(query string, c chan recordSet) {
+	recordSet, err := nuxeoClient.QueryWithParams(query, 0, 0, 0, 0, "", "", "")
+
+	if err != nil {
+		panic(err)
+	}
+	c <- recordSet
+}
+
+func (nuxeoClient *nuxeoClient) QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (recordSet, error) {
 
 	baseURL, err := url.Parse(nuxeoClient.url)
 
@@ -175,7 +240,7 @@ func (nuxeoClient *nuxeoClient) QueryWithParams(query string, pageSize int, curr
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Get(baseURL.String())
 
-	var recordSet RecordSet
+	var recordSet recordSet
 	err = HandleResponse(err, resp, &recordSet)
 
 	for key, doc := range recordSet.Documents {
@@ -197,8 +262,26 @@ func (nuxeoClient *nuxeoClient) Directory(directory string) (DirectorySet, error
 	return directorySet, err
 }
 
-// func (nuxeoClient *nuxeoClient) FetchBlob()(Blob, error){
-// 	profileImgBytes, _ := ioutil.ReadFile("/Users/jeeva/test-img.png")
-// notesBytes, _ := ioutil.ReadFile("/Users/jeeva/text-file.txt")
+func (nuxeoClient *nuxeoClient) Attack(uri string, body []byte, method string) ([]byte, error) {
+	var resp *resty.Response
+	var err error
+	switch method {
+	case "get":
+		resp, err = nuxeoClient.client.R().EnableTrace().Get(uri)
+	case "post":
+		resp, err = nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(uri)
+	case "put":
+		resp, err = nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Put(uri)
+	case "delete":
+		resp, err = nuxeoClient.client.R().EnableTrace().Delete(uri)
+	default:
+		resp, err = nuxeoClient.client.R().EnableTrace().Get(uri)
+	}
+	return resp.Body(), err
+}
 
-// }
+func (nuxeoClient *nuxeoClient) Automation() Automation {
+	return &automation{
+		nuxeoClient: nuxeoClient,
+	}
+}

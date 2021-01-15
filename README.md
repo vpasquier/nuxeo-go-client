@@ -143,8 +143,9 @@ documents := domain.FetchChildren()
 ```
 
 ```go
-// Get Blob
+// Get Blob "file:content"
 blob := document.FetchBlob()
+// Get Blob from a custom file metadata
 blob := document.FetchCustomBlob("customfile:content")
 ```
 
@@ -161,18 +162,25 @@ type Blob struct {
 ```go
 // Query
 resultSet, err := nuxeoClient.Query("SELECT * FROM Domain")
-assert.Equal(len(resultSet.Documents), 1)
+assert.Equal(1, len(resultSet.Documents))
 ```
 
 for information:
 
 ```go
-type RecordSet struct {
+type recordSet struct {
 	Documents        []document `json:"entries"`
 	TotalSize        int        `json:"totalSize"`
 	CurrentPageIndex int        `json:"currentPageIndex"`
 	NumberOfPages    int        `json:"numberOfPages"`
 }
+```
+
+
+```go
+// Fetch blob
+file := nuxeoClient.repository().fetchDocumentByPath("/folder_2/file");
+blob := file.fetchBlob();
 ```
 
 ```go
@@ -201,18 +209,19 @@ type DirectorySet struct {
 }
 ```
 
-#### Operation API
+#### Automation/Operation API
 
 ```go
 // Fetch document
-document := nuxeoClient.operation(Operations.REPOSITORY_GET_DOCUMENT).param("value", "/").execute();
+params := make(map[string]string)
+params["value"] = "/"
+doc, err := nuxeoClient.Automation().Operation("Repository.GetDocument").Parameters(params).DocExecute()
 ```
 
 ```go
 // Query
-documents := nuxeoClient.operation("Repository.Query")
-                            .param("query", "SELECT * FROM Document")
-                            .execute();
+params["query"] = "SELECT * FROM Document"
+records, err := nuxeoClient.Automation().Operation("Repository.Query").Parameters(params).DocListExecute()
 ```
 
 ```go
@@ -233,12 +242,6 @@ Blobs blobs = nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
                          .param("document", "/folder/file")
                          .input(inputBlobs)
                          .execute();
-```
-
-```go
-// Fetch blob
-file := nuxeoClient.repository().fetchDocumentByPath("/folder_2/file");
-blob := file.fetchBlob();
 ```
 
 #### Batch Upload

@@ -27,26 +27,26 @@ type document struct {
 	Properties  map[string]interface{} `json:"properties"`
 	nuxeoClient nuxeoClient
 }
+
 // Blob
 // type Blob struct {
 // 	filename string
 // 	size int
-// 	file 
+// 	file
 //   }
 
-// RecordSet represents page provider results
-type RecordSet struct {
+type recordSet struct {
 	Documents        []document `json:"entries"`
 	TotalSize        int        `json:"totalSize"`
 	CurrentPageIndex int        `json:"currentPageIndex"`
 	NumberOfPages    int        `json:"numberOfPages"`
 }
 
-func (doc document) FetchChildren() RecordSet {
+func (doc document) FetchChildren() recordSet {
 	url := doc.nuxeoClient.url + "/api/v1/path" + doc.Path + "/@children"
 
 	resp, err := doc.nuxeoClient.client.R().EnableTrace().Get(url)
-	var recordSet RecordSet
+	var recordSet recordSet
 	HandleResponse(err, resp, &recordSet)
 
 	for key, entry := range recordSet.Documents {

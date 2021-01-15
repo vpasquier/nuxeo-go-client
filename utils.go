@@ -29,7 +29,7 @@ import (
 func HandleResponse(err error, resp *resty.Response, q interface{}) error {
 
 	if err != nil {
-		return errors.Unwrap(err)
+		return err
 	}
 
 	// Explore response object
@@ -74,7 +74,7 @@ func HandleResponse(err error, resp *resty.Response, q interface{}) error {
 	jsonErr := json.Unmarshal(data, q)
 
 	if jsonErr != nil {
-		return errors.Unwrap(jsonErr)
+		return jsonErr
 	}
 
 	return nil

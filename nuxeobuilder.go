@@ -116,8 +116,6 @@ func (cb *clientBuilder) Debug(debug bool) ClientBuilder {
 
 func (cb *clientBuilder) Build() Client {
 
-	log.Println("Creating Nuxeo Client...")
-
 	client := resty.New()
 
 	if val, ok := cb.headers["Content-Type"]; !ok {
@@ -156,6 +154,9 @@ func (cb *clientBuilder) Build() Client {
 		url = DefaultURL
 	}
 	cb.url = url
+
+	log.Debug("Nuxeo Client Builder:")
+	log.Debug(cb)
 
 	return &nuxeoClient{
 		url:        cb.url,
