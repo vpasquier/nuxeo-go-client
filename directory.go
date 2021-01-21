@@ -17,14 +17,44 @@
 
 package nuxeoclient
 
+import (
+	"encoding/json"
+)
+
 // Directory represents a Nuxeo directory
-type Directory struct {
+type directory struct {
+	EntityType    string                 `json:"entity-type"`
 	DirectoryName string                 `json:"directoryName"`
 	ID            string                 `json:"id"`
 	Properties    map[string]interface{} `json:"properties"`
 }
 
 // DirectorySet represents a Nuxeo directory set
-type DirectorySet struct {
-	Entries []Directory `json:"entries"`
+type directorySet struct {
+	Entries []directory `json:"entries"`
+}
+
+func (nuxeoClient *nuxeoClient) GetDirectory(directory string) (directorySet, error) {
+	uri := nuxeoClient.url + "/api/v1/directory/" + directory
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Get(uri)
+
+	var directorySet directorySet
+	err = HandleResponse(err, resp, &directorySet)
+
+	return directorySet, err
+}
+
+func (nuxeoClient *nuxeoClient) CreateDirectory(name string, dir directory) (directory, error) {
+
+	uri := nuxeoClient.url + "/api/v1/directory/" + name
+
+	body, err := json.Marshal(dir)
+
+	resp, err := nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(uri)
+
+	var newDir directory
+	err = HandleResponse(err, resp, &newDir)
+
+	return newDir, err
 }

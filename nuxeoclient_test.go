@@ -159,11 +159,28 @@ func TestRepositoryQuery(t *testing.T) {
 func TestRepositoryDirectory(t *testing.T) {
 	assert, nuxeoClient := initTest(t)
 
-	resultSet, err := nuxeoClient.Directory("continent")
+	directorySet, err := nuxeoClient.GetDirectory("continent")
 
 	assert.Nil(err)
 
-	assert.Equal(7, len(resultSet.Entries))
+	assert.Equal(7, len(directorySet.Entries))
+
+	properties := make(map[string]interface{})
+	properties["id"] = "go"
+	properties["obsolete"] = "0"
+	properties["ordering"] = "10"
+	properties["label"] = "Go"
+
+	newDir := directory{
+		EntityType:    "directoryEntry",
+		DirectoryName: "continent",
+		Properties:    properties,
+	}
+
+	returnedDir, err := nuxeoClient.CreateDirectory("continent", newDir)
+
+	assert.Nil(err)
+	assert.NotEmpty(returnedDir.ID)
 }
 
 func TestAutomation(t *testing.T) {

@@ -47,7 +47,8 @@ type Client interface {
 	QueryWithParams(query string, pageSize int, currentPageIndex int, offset int, maxResults int, sortBy string, sortOrder string, queryParams string) (recordSet, error)
 	Query(query string) (recordSet, error)
 	AsyncQuery(query string, c chan recordSet)
-	Directory(directory string) (DirectorySet, error)
+	GetDirectory(directory string) (directorySet, error)
+	CreateDirectory(directoryName string, dir directory) (directory, error)
 	Attack(uri string, body []byte, method string) ([]byte, error)
 	Automation() Automation
 }
@@ -249,17 +250,6 @@ func (nuxeoClient *nuxeoClient) QueryWithParams(query string, pageSize int, curr
 	}
 
 	return recordSet, err
-}
-
-func (nuxeoClient *nuxeoClient) Directory(directory string) (DirectorySet, error) {
-	uri := nuxeoClient.url + "/api/v1/directory/" + directory
-
-	resp, err := nuxeoClient.client.R().EnableTrace().Get(uri)
-
-	var directorySet DirectorySet
-	err = HandleResponse(err, resp, &directorySet)
-
-	return directorySet, err
 }
 
 func (nuxeoClient *nuxeoClient) Attack(uri string, body []byte, method string) ([]byte, error) {

@@ -176,7 +176,6 @@ type recordSet struct {
 }
 ```
 
-
 ```go
 // Fetch blob
 file := nuxeoClient.repository().fetchDocumentByPath("/folder_2/file");
@@ -189,24 +188,42 @@ blob := file.fetchBlob();
 ```
 
 ```go
-// Directories
-resultSet, err := nuxeoClient.Directory("continent")
-```
-
-For information:
-
-```go
 // Directory represents a Nuxeo directory
-type Directory struct {
-	directoryName string                 `json:"directoryName"`
-	id            string                 `json:"id"`
-	properties    map[string]interface{} `json:"properties"`
+type directory struct {
+	EntityType    string                 `json:"entity-type"`
+	DirectoryName string                 `json:"directoryName"`
+	ID            string                 `json:"id"`
+	Properties    map[string]interface{} `json:"properties"`
 }
 
 // DirectorySet represents a Nuxeo directory set
-type DirectorySet struct {
-	entries []Directory `json:"entries"`
+type directorySet struct {
+	Entries []directory `json:"entries"`
 }
+```
+
+```go
+// Directories
+directorySet, err := nuxeoClient.GetDirectory("continent")
+assert.Equal(7, len(directorySet.Entries))
+```
+
+```go
+// Create entry in directory
+properties := make(map[string]interface{})
+properties["id"] = "go"
+properties["obsolete"] = "0"
+properties["ordering"] = "10"
+properties["label"] = "Go"
+
+newDir := directory{
+	EntityType:    "directoryEntry",
+	DirectoryName: "continent",
+	Properties:    properties,
+}
+
+returnedDir, err := nuxeoClient.CreateDirectory("continent", newDir)
+
 ```
 
 #### Automation/Operation API
