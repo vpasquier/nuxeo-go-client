@@ -35,7 +35,7 @@ const (
 
 // Client interface
 type Client interface {
-	Login() (user, error)
+	Login() (userLogged, error)
 	FetchDocumentRoot() (document, error)
 	FetchDocumentByPath(path string) (document, error)
 	AsyncFetchDocumentByPath(path string, c chan document)
@@ -52,6 +52,9 @@ type Client interface {
 	DeleteDirectory(directoryName string, entry string) error
 	Attack(uri string, body []byte, method string) ([]byte, error)
 	Automation() Automation
+	GetUser(username string) (user, error)
+	DeleteUser(username string) error
+	CreateUser(newUser user) (user, error)
 }
 
 func init() {
@@ -69,13 +72,13 @@ func init() {
 }
 
 // Create the client after applying configuration
-func (nuxeoClient *nuxeoClient) Login() (user, error) {
+func (nuxeoClient *nuxeoClient) Login() (userLogged, error) {
 
 	url := nuxeoClient.url + "/api/v1/automation/login"
 
 	resp, err := nuxeoClient.client.R().EnableTrace().Post(url)
 
-	var currentUser user
+	var currentUser userLogged
 	err = HandleResponse(err, resp, &currentUser)
 
 	return currentUser, err

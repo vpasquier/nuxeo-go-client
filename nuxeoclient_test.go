@@ -249,6 +249,37 @@ func TestAsyncFetchBlob(t *testing.T) {
 	}
 }
 
+func TestUserGroup(t *testing.T) {
+	assert, nuxeoClient := initTest(t)
+
+	returnedUser, err := nuxeoClient.GetUser("Administrator")
+
+	assert.Nil(err)
+	assert.Contains(returnedUser.Properties["groups"], "administrators")
+
+	properties := make(map[string]interface{})
+	properties["firstName"] = "Go"
+	properties["lastName"] = "Lang"
+	properties["group"] = [...]string{"administrators"}
+	properties["company"] = "nuxeo"
+	properties["email"] = "go@nuxeo.com"
+	properties["username"] = "go"
+
+	newUser := user{
+		Username:   "go",
+		EntityType: "user",
+		Properties: properties,
+	}
+
+	returnedUser, err = nuxeoClient.CreateUser(newUser)
+
+	assert.Nil(err)
+
+	err = nuxeoClient.DeleteUser("go")
+
+	assert.Nil(err)
+}
+
 // Benchmark to get average response in local
 // Result example:
 // goos: darwin
