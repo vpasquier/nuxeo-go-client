@@ -30,7 +30,7 @@ This is compatible with All Nuxeo servers.
 #### Import Nuxeo Go Client with:
 
 ```
-require github.com/vpasquier/nuxeo-go-client v1.0.0
+require github.com/vpasquier/nuxeo-go-client
 ```
 
 ```
@@ -167,37 +167,14 @@ documents := domain.FetchChildren()
 ```
 
 ```go
-// Get Blob "file:content"
-blob := document.FetchBlob()
-// Get Blob from a custom file metadata
-blob := document.FetchCustomBlob("customfile:content")
-```
-
-For information:
-
-```go
-type Blob struct {
-  filename string
-  size int
-  file File?
-}
+// Get Blob
+blob := document.FetchBlob("file:content)
 ```
 
 ```go
 // Query
 resultSet, err := nuxeoClient.Query("SELECT * FROM Domain")
 assert.Equal(1, len(resultSet.Documents))
-```
-
-for information:
-
-```go
-type recordSet struct {
-	Documents        []document `json:"entries"`
-	TotalSize        int        `json:"totalSize"`
-	CurrentPageIndex int        `json:"currentPageIndex"`
-	NumberOfPages    int        `json:"numberOfPages"`
-}
 ```
 
 ```go
@@ -236,12 +213,43 @@ newDir := directory{
 }
 
 returnedDir, err := nuxeoClient.CreateDirectory("continent", newDir)
-
 ```
 
-#### Async calls example
+```go
+// Delete entry in directory
+errDelete := nuxeoClient.DeleteDirectory("continent", "go")
+```
 
 ```go
+// Users API
+returnedUser, err := nuxeoClient.GetUser("Administrator")
+
+assert.Nil(err)
+assert.Contains(returnedUser.Properties["groups"], "administrators")
+
+properties := make(map[string]interface{})
+properties["firstName"] = "Go"
+properties["lastName"] = "Lang"
+properties["group"] = [...]string{"administrators"}
+properties["company"] = "nuxeo"
+properties["email"] = "go@nuxeo.com"
+properties["username"] = "go"
+
+newUser := user{
+	Username:   "go",
+	EntityType: "user",
+	Properties: properties,
+}
+
+returnedUser, err = nuxeoClient.CreateUser(newUser)
+
+assert.Nil(err)
+
+err = nuxeoClient.DeleteUser("go")
+```
+
+```go
+// Async call
 c := make(chan document, 1)
 
 go nuxeoClient.AsyncFetchDocumentByPath("/default-domain", c)
@@ -303,6 +311,12 @@ doc, err := nuxeoClient.Automation().Operation("Repository.GetDocument").Paramet
 params["query"] = "SELECT * FROM Document"
 records, err := nuxeoClient.Automation().Operation("Repository.Query").Parameters(params).DocListExecute()
 ```
+
+## Missing Stuff
+
+- Batch Upload (easy to do with https://github.com/go-resty/resty#using-file-directly-from-path)
+- Automation has not been implemented/tested for all inputs/outputs (easy to enrich)
+- Certainly other little gaps...
 
 ## Reporting Issues
 
