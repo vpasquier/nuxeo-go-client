@@ -101,6 +101,19 @@ set env var `NUXEO_LOG_LEVEL` to `debug` (by default `info`)
 #### Repository API
 
 ```go
+// Here the document structure
+type document struct {
+	EntityType  string                 `json:"entity-type"`
+	UID         string                 `json:"uid"`
+	Path        string                 `json:"path"`
+	Type        string                 `json:"type"`
+	Name        string                 `json:"name"`
+	Properties  map[string]interface{} `json:"properties"`
+	nuxeoClient nuxeoClient
+}
+```
+
+```go
 // Fetch the root document
 rootDocument, err := nuxeoClient.FetchDocumentRoot()
 ```
@@ -136,6 +149,17 @@ updatedDocument, err := nuxeoClient.UpdateDocument(newDocument)
 // Delete a document
 err = nuxeoClient.DeleteDocument(updatedDocument)
 ```
+
+```go
+// Here the page provider result structure
+type recordSet struct {
+	Documents        []document `json:"entries"`
+	TotalSize        int        `json:"totalSize"`
+	CurrentPageIndex int        `json:"currentPageIndex"`
+	NumberOfPages    int        `json:"numberOfPages"`
+}
+```
+
 
 ```go
 // Fetch children
@@ -177,17 +201,6 @@ type recordSet struct {
 ```
 
 ```go
-// Fetch blob
-file := nuxeoClient.repository().fetchDocumentByPath("/folder_2/file");
-blob := file.fetchBlob();
-```
-
-```go
-// Async call for downloading a blob
-
-```
-
-```go
 // Directory represents a Nuxeo directory
 type directory struct {
 	EntityType    string                 `json:"entity-type"`
@@ -226,6 +239,56 @@ returnedDir, err := nuxeoClient.CreateDirectory("continent", newDir)
 
 ```
 
+#### Async calls example
+
+```go
+c := make(chan document, 1)
+
+go nuxeoClient.AsyncFetchDocumentByPath("/default-domain", c)
+
+select {
+case rootDocument := <-c:
+	assert.Equal("/default-domain", rootDocument.Path)
+case <-time.After(1 * time.Second):
+	assert.Fail("Result should have been received already")
+```
+
+#### Blobs
+
+```go
+// Attach document
+params["document"] = "/default-domain/workspaces/workspace/file"
+params["save"] = "true"
+params["xpath"] = "file:content"
+
+image, _ := ioutil.ReadFile("pink.jpg")
+
+blob, blobError := nuxeoClient.Automation().Operation("Blob.AttachOnDocument").Parameters(params).Blob("pink.jpg", image).BlobExecute()
+```
+
+```go
+// Fetch blob
+file, err := nuxeoClient.FetchDocumentByPath("/default-domain/workspaces/workspace/file")
+blob, blobError := file.FetchBlob("file:content")
+assert.Equal(1025580, len(blob))
+```
+
+```go
+// Async call for downloading a blob
+file, err := nuxeoClient.FetchDocumentByPath("/default-domain/workspaces/workspace/file")
+
+c := make(chan []byte, 1)
+
+go file.AsyncFetchBlob("file:content", c)
+
+select {
+case blob := <-c:
+	assert.Equal(1025580, len(blob))
+case <-time.After(10 * time.Second):
+	assert.Fail("Result should have been received already")
+}
+```
+
 #### Automation/Operation API
 
 ```go
@@ -239,86 +302,6 @@ doc, err := nuxeoClient.Automation().Operation("Repository.GetDocument").Paramet
 // Query
 params["query"] = "SELECT * FROM Document"
 records, err := nuxeoClient.Automation().Operation("Repository.Query").Parameters(params).DocListExecute()
-```
-
-```go
-// Attach blobs
-fileBlob := new FileBlob(File file);
-nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
-           .voidOperation(true)
-           .param("document", "/folder/file")
-           .input(fileBlob)
-           .execute();
-
-inputBlobs := new []Blobs();
-inputBlobs.add(File file1);
-inputBlobs.add(new StreamBlob(InputStream stream, String filename2));
-Blobs blobs = nuxeoClient.operation(Operations.BLOB_ATTACH_ON_DOCUMENT)
-                         .voidOperation(true)
-                         .param("xpath", "files:files")
-                         .param("document", "/folder/file")
-                         .input(inputBlobs)
-                         .execute();
-```
-
-#### Batch Upload
-
-```java
-// Batch Upload Manager
-BatchUploadManager batchUploadManager = nuxeoClient.uploadManager();
-BatchUpload batchUpload = batchUploadManager.createBatch();
-```
-
-```java
-// Upload File
-File file = FileUtils.getResourceFileFromContext("sample.jpg");
-batchUpload = batchUpload.upload("1", file);
-
-// Fetch/Refresh the batch file information from server
-batchUpload = batchUpload.fetchBatchUpload("1");
-
-// Directly from the manager
-batchUpload = batchUpload.fetchBatchUpload(batchUpload.getBatchId(), "1");
-
-// Upload another file and check files
-file = FileUtils.getResourceFileFromContext("blob.json");
-batchUpload.upload("2", file);
-List<BatchUpload> batchFiles = batchUpload.fetchBatchUploads();
-```
-Batch upload can be executed in a [chunk mode](https://doc.nuxeo.com/display/NXDOC/Blob+Upload+for+Batch+Processing?src=search#BlobUploadforBatchProcessing-UploadingaFilebyChunksUploadingaFilebyChunks).
-
-```java
-// Upload file chunks
-BatchUploadManager batchUploadManager = nuxeoClient.uploadManager();
-BatchUpload batchUpload = batchUploadManager.createBatch();
-batchUpload.enableChunk();
-File file = FileUtils.getResourceFileFromContext("sample.jpg");
-batchUpload = batchUpload.upload("1", file);
-```
-
-Chunk size is by default 1MB (int 1024*1024). You can update this value with:
-
-```java
-batchUpload.chunkSize(1024);
-```
-
-Attach batch to a document:
-
-```java
-Document doc = new Document("file", "File");
-doc.set("dc:title", "new title");
-doc = nuxeoClient.repository().createDocumentByPath("/folder_1", doc);
-doc.set("file:content", batchUpload.getBatchBlob());
-doc = doc.updateDocument();
-```
-
-or with operation:
-
-```java
-Document doc = new Document("file", "File");
-doc.set("dc:title", "new title");
-doc = nuxeoClient.repository().createDocumentByPath("/folder_1", doc);
-Blob blob = batchUpload.operation(Operations.BLOB_ATTACH_ON_DOCUMENT).param("document", doc).execute();
 ```
 
 ## Reporting Issues

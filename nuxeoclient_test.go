@@ -18,6 +18,7 @@
 package nuxeoclient
 
 import (
+	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const DEBUG = true
+const DEBUG = false
 
 func TestSmokeClient(t *testing.T) {
 	assert := assert.New(t)
@@ -200,4 +201,47 @@ func TestAutomation(t *testing.T) {
 
 	assert.Nil(err)
 	assert.NotEmpty(records.Documents)
+
+	params["document"] = "/default-domain/workspaces/workspace/file"
+	params["save"] = "true"
+	params["xpath"] = "file:content"
+
+	image, _ := ioutil.ReadFile("pink.jpg")
+
+	blob, blobError := nuxeoClient.Automation().Operation("Blob.AttachOnDocument").Parameters(params).Blob("pink.jpg", image).BlobExecute()
+
+	assert.Nil(blobError)
+	assert.Equal(1025580, len(blob))
+}
+
+func TestFetchBlob(t *testing.T) {
+	assert, nuxeoClient := initTest(t)
+
+	file, err := nuxeoClient.FetchDocumentByPath("/default-domain/workspaces/workspace/file")
+
+	assert.Nil(err)
+
+	blob, blobError := file.FetchBlob("file:content")
+
+	assert.Nil(blobError)
+	assert.Equal(1025580, len(blob))
+}
+
+func TestAsyncFetchBlob(t *testing.T) {
+	assert, nuxeoClient := initTest(t)
+
+	file, err := nuxeoClient.FetchDocumentByPath("/default-domain/workspaces/workspace/file")
+
+	assert.Nil(err)
+
+	c := make(chan []byte, 1)
+
+	go file.AsyncFetchBlob("file:content", c)
+
+	select {
+	case blob := <-c:
+		assert.Equal(1025580, len(blob))
+	case <-time.After(10 * time.Second):
+		assert.Fail("Result should have been received already")
+	}
 }

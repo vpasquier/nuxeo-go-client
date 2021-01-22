@@ -18,6 +18,7 @@
 package nuxeoclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -31,6 +32,8 @@ type automation struct {
 	context       map[string]string
 	input         string
 	nuxeoClient   *nuxeoClient
+	blob          []byte
+	blobName      string
 }
 
 type opBody struct {
@@ -44,16 +47,25 @@ type Automation interface {
 	Operation(name string) Automation
 	Parameters(parameters map[string]string) Automation
 	Input(input string) Automation
+	Blob(string, []byte) Automation
 	Context(context map[string]string) Automation
 	Execute() (*resty.Response, error)
 	DocExecute() (document, error)
 	DocListExecute() (recordSet, error)
-	BlobExecute() ([]document, error)
+	BlobExecute() ([]byte, error)
 }
 
 // Operation name setter
 func (auto *automation) Operation(name string) Automation {
 	auto.operationName = name
+	return auto
+}
+
+// Blob setter
+func (auto *automation) Blob(name string, blob []byte) Automation {
+	auto.blobName = name
+	auto.blob = blob
+	auto.input = name
 	return auto
 }
 
@@ -96,9 +108,20 @@ func (auto *automation) Execute() (*resty.Response, error) {
 		Params:  auto.parameters,
 	}
 
-	body, err := json.Marshal(opBody)
+	var body []byte
 
-	response, err := auto.nuxeoClient.client.R().EnableTrace().SetBody(string(body[:])).Post(baseURL.String())
+	client := auto.nuxeoClient.client.R()
+	body, err = json.Marshal(opBody)
+
+	if auto.blobName != "" {
+		client.SetFileReader("operation_body", "operation_body", bytes.NewReader(body))
+		client.SetFileReader(auto.blobName, auto.blobName, bytes.NewReader(auto.blob))
+		client.SetHeader("Content-Type", "multipart/related")
+	} else {
+		client.SetBody(string(body[:]))
+	}
+
+	response, err := client.EnableTrace().Post(baseURL.String())
 
 	return response, err
 }
@@ -139,20 +162,12 @@ func (auto *automation) DocListExecute() (recordSet, error) {
 }
 
 // BlobExecute returns blob from operation rest api
-func (auto *automation) BlobExecute() ([]document, error) {
+func (auto *automation) BlobExecute() ([]byte, error) {
 	response, err := auto.Execute()
 
 	if err != nil {
-		return []document{}, err
+		return nil, err
 	}
 
-	var docList []document
-	err = HandleResponse(err, response, &docList)
-
-	for key, doc := range docList {
-		_ = key
-		doc.nuxeoClient = *auto.nuxeoClient
-	}
-
-	return docList, err
+	return response.Body(), err
 }

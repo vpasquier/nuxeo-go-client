@@ -28,13 +28,6 @@ type document struct {
 	nuxeoClient nuxeoClient
 }
 
-// Blob
-// type Blob struct {
-// 	filename string
-// 	size int
-// 	file
-//   }
-
 type recordSet struct {
 	Documents        []document `json:"entries"`
 	TotalSize        int        `json:"totalSize"`
@@ -54,7 +47,25 @@ func (doc document) FetchChildren() recordSet {
 		entry.nuxeoClient = doc.nuxeoClient
 	}
 
-	// TODO reconnect all documents with nuxeoClient
-
 	return recordSet
+}
+
+func (doc document) FetchBlob(xpath string) ([]byte, error) {
+	url := doc.nuxeoClient.url + "/api/v1/path" + doc.Path + "/@blob/" + xpath
+
+	resp, err := doc.nuxeoClient.client.R().EnableTrace().Get(url)
+
+	return resp.Body(), err
+}
+
+func (doc document) AsyncFetchBlob(xpath string, c chan []byte) {
+	url := doc.nuxeoClient.url + "/api/v1/path" + doc.Path + "/@blob/" + xpath
+
+	resp, err := doc.nuxeoClient.client.R().EnableTrace().Get(url)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c <- resp.Body()
 }
