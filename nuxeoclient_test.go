@@ -182,6 +182,9 @@ func TestRepositoryDirectory(t *testing.T) {
 
 	assert.Nil(err)
 	assert.NotEmpty(returnedDir.ID)
+
+	errDelete := nuxeoClient.DeleteDirectory("continent", "go")
+	assert.Nil(errDelete)
 }
 
 func TestAutomation(t *testing.T) {

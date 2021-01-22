@@ -58,3 +58,14 @@ func (nuxeoClient *nuxeoClient) CreateDirectory(name string, dir directory) (dir
 
 	return newDir, err
 }
+
+func (nuxeoClient *nuxeoClient) DeleteDirectory(name string, entry string) error {
+
+	uri := nuxeoClient.url + "/api/v1/directory/" + name + "/" + entry
+
+	resp, err := nuxeoClient.client.R().EnableTrace().Delete(uri)
+
+	_ = resp
+
+	return err
+}

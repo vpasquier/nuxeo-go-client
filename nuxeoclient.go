@@ -49,6 +49,7 @@ type Client interface {
 	AsyncQuery(query string, c chan recordSet)
 	GetDirectory(directory string) (directorySet, error)
 	CreateDirectory(directoryName string, dir directory) (directory, error)
+	DeleteDirectory(directoryName string, entry string) error
 	Attack(uri string, body []byte, method string) ([]byte, error)
 	Automation() Automation
 }
