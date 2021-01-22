@@ -245,3 +245,18 @@ func TestAsyncFetchBlob(t *testing.T) {
 		assert.Fail("Result should have been received already")
 	}
 }
+
+// Benchmark to get average response in local
+// Result example:
+// goos: darwin
+// goarch: amd64
+// 8423910 ns/op	   14573 B/op	     234 allocs/op
+func BenchmarkF(b *testing.B) {
+	nuxeoClient := NuxeoClient().URL("http://localhost:8080/nuxeo").Username("Administrator").Password("Administrator").Debug(DEBUG).Schemas([]string{"*"}).Build()
+
+	nuxeoClient.Login()
+
+	for i := 0; i < b.N; i++ {
+		nuxeoClient.FetchDocumentRoot()
+	}
+}
