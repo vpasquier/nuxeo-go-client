@@ -4,6 +4,8 @@ This library is a Go HTTP client for Nuxeo Platform REST APIs.
 
 This is compatible with All Nuxeo servers.
 
+https://github1s.com/vpasquier/nuxeo-go-client
+
 ## Getting Started
 
 ### Server
