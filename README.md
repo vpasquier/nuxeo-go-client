@@ -1,5 +1,4 @@
 # Nuxeo Go Client
-dwidhwdih
 This library is a Go HTTP client for Nuxeo Platform REST APIs.
 
 This is compatible with All Nuxeo servers.
