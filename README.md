@@ -1,4 +1,4 @@
-# Nuxeo Go Client
+# Nuxeo Go Client 1.0.2
 
 This library is a Go HTTP client for Nuxeo Platform REST APIs.
 
